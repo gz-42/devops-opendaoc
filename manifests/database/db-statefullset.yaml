@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mariadb-sts
+  namespace: gameserver
+  labels:
+      app: mariadb
+spec:
+  serviceName: "mariadb-service"
+  selector:
+    matchLabels:
+      app: mariadb
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+      - name: mariadb
+        image: ghcr.io/gz-42/opendaoc-database:2025.02.1
+        imagePullPolicy: ifNotPresent
+        ports:
+          - containerPort: 3306
+            protocol: TCP
+            name: mariadb-port
+        args:
+          - --default-authentication-plugin=mysql_native_password 
+          - --lower_case_table_names=1 
+          - --character-set-server=utf8mb3 
+          - --collation-server=utf8mb3_general_ci 
+          - --innodb_large_prefix=1 
+          - --innodb_file_format=Barracuda 
+          - --innodb_file_per_table=1
+        envFrom:
+        - secretRef:
+            name: db-secrets
+        stdin: true
+        tty: true
+        volumeMounts:
+          - mountPath: /var/lib/mysql
+            name: opendaoc-db-data
+      restartPolicy: Always
+      volumes:
+        - name: opendaoc-db-data
+          persistentVolumeClaim:
+            claimName: opendaoc-db-data
