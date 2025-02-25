@@ -20,7 +20,7 @@ spec:
       containers:
       - name: devops-opendaoc-server
         image: ghcr.io/gz-42/opendaoc-core:2025.02.8
-        imagePullPolicy: Never
+        imagePullPolicy: ifNotPresent
         ports:
           - containerPort: 10300
             protocol: TCP
