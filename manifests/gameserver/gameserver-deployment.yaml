@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gameserver
+  namespace: gameserver
+  labels:
+      app: gameserver
+spec:
+  selector:
+    matchLabels:
+      app: gameserver
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: gameserver
+    spec:
+      containers:
+      - name: devops-opendaoc-server
+        image: ghcr.io/gz-42/opendaoc-core:2025.02.1
+        imagePullPolicy: Never
+        ports:
+          - containerPort: 10300
+            protocol: TCP
+            name: gameserver-tcp
+          - containerPort: 10400
+            protocol: UDP       
+            name: gameserver-udp 
+        envFrom:
+        - secretRef:
+            name: gameserver-secrets
+        - configMapRef:
+            name: gameserver-configmap
+        stdin: true
+        tty: true
+      restartPolicy: Always
