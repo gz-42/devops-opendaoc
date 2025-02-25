@@ -11,8 +11,6 @@ spec:
     matchLabels:
       app: mariadb
   replicas: 1
-  strategy:
-    type: RollingUpdate
   template:
     metadata:
       labels:
@@ -21,7 +19,7 @@ spec:
       containers:
       - name: mariadb
         image: ghcr.io/gz-42/opendaoc-database:2025.02.5
-        imagePullPolicy: ifNotPresent
+        imagePullPolicy: IfNotPresent
         ports:
           - containerPort: 3306
             protocol: TCP
