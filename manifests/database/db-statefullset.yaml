@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: mariadb
-        image: ghcr.io/gz-42/opendaoc-database:2025.02.1
+        image: ghcr.io/gz-42/opendaoc-database:2025.02.5
         imagePullPolicy: ifNotPresent
         ports:
           - containerPort: 3306
