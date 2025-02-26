@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gameserver-services-tcp
+  namespace: gameserver
+spec:
+  selector:
+    app: gameserver
+  type: ClusterIP
+  ports:
+    - name: gameserver-tcp
+      protocol: TCP
+      port: 10300
+      targetPort: 10300
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gameserver-services-udp
+  namespace: gameserver
+spec:
+  selector:
+    app: gameserver
+  type: ClusterIP
+  ports:
+    - name: gameserver-udp
+      protocol: UDP
+      port: 10400
+      targetPort: 10400
