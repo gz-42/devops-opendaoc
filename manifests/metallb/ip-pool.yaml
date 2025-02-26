@@ -1,0 +1,12 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: ip-pool
+  namespace: metallb-system
+spec:
+  addresses:
+# The range of IP addresses that MetalLB can assign to services
+# You should specify a range that is not in use by your DHCP server
+# For example, if your local network is 10.42.42.0/24 and your DHCP server is not serving addresses in the range 10.42.42.100-10.42.42.254
+# Then you can use the range
+  - 10.42.42.142-10.42.42.242
