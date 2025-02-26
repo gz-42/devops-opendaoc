@@ -9,7 +9,7 @@ spec:
   selector:
     matchLabels:
       app: gameserver
-  replicas: 1
+  replicas: 2
   strategy:
     type: RollingUpdate
   template:
@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: devops-opendaoc-server
-        image: ghcr.io/gz-42/opendaoc-core:2025.02.9
+        image: ghcr.io/gz-42/opendaoc-core:2025.02.1
         imagePullPolicy: IfNotPresent
         ports:
           - containerPort: 10300
