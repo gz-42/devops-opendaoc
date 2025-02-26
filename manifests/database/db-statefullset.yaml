@@ -6,11 +6,11 @@ metadata:
   labels:
       app: mariadb
 spec:
-  serviceName: "mariadb-service"
+  serviceName: "mariadb-services"
   selector:
     matchLabels:
       app: mariadb
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       labels:
@@ -41,7 +41,11 @@ spec:
           - mountPath: /var/lib/mysql
             name: opendaoc-db-data
       restartPolicy: Always
-      volumes:
-        - name: opendaoc-db-data
-          persistentVolumeClaim:
-            claimName: opendaoc-db-data
+  volumeClaimTemplates:
+  - metadata:
+      name: opendaoc-db-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
