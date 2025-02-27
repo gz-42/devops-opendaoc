@@ -1,0 +1,7 @@
+appName: opendaoc-core
+namespace: prod
+replicaCount: 2
+image:
+  name: ghcr.io/gz-42/opendaoc-core
+  tag: 2025.02.1
+DB_CONNECTION_STRING: "${{ secrets.DB_CONNECTION_STRING }}"

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.appName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+      app: {{ .Values.appName }}
+spec:
+  serviceName: "{{ .Values.appName }}-services"
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName }}
+    spec:
+      containers:
+      - name: {{ .Values.appName }}
+        image: "{{ .Values.image.name }}:{{ .Values.image.tag }}"
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 3306
+            protocol: TCP
+            name: {{ .Values.appName }}-port
+        args:
+          - --default-authentication-plugin=mysql_native_password 
+          - --lower_case_table_names=1 
+          - --character-set-server=utf8mb3 
+          - --collation-server=utf8mb3_general_ci 
+          - --innodb_large_prefix=1 
+          - --innodb_file_format=Barracuda 
+          - --innodb_file_per_table=1
+        envFrom:
+        - secretRef:
+            name: {{ .Values.appName }}-secrets
+        stdin: true
+        tty: true
+        volumeMounts:
+          - mountPath: /var/lib/mysql
+            name: {{ .Values.appName }}-data
+      restartPolicy: Always
+      volumes:
+        - name: {{ .Values.appName }}-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.appName }}-data

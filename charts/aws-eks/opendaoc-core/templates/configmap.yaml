@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.appName }}-configmap
+  namespace: {{ .Values.namespace }}
+data:
+  AUTO_ACCOUNT_CREATION: "True"
+  CHEAT_LOGGER_NAME: "cheats"
+  CPU_USE: "8"
+  DB_AUTOSAVE: "True"
+  DB_AUTOSAVE_INTERVAL: "10"
+  DB_TYPE: "MYSQL"
+  DETECT_REGION_IP: "True"
+  DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "False"
+  ENABLE_COMPILATION: "True"
+  ENABLE_UPNP: "False"
+  GAME_TYPE: "Normal"
+  GID: "1000"
+  GM_ACTION_LOGGER_NAME: "gmactions"
+  INVALID_NAMES_FILE: "./config/invalidnames.txt"
+  LOG_CONFIG_FILE: "./config/logconfig.xml"
+  REGION_IP: "0.0.0.0"
+  REGION_PORT: "10400"
+  SCRIPT_ASSEMBLIES: ""
+  SCRIPT_COMPILATION_TARGET: "./lib/GameServerScripts.dll"
+  SERVER_IP: "0.0.0.0"
+  SERVER_NAME: "OpenDAoC"
+  SERVER_NAME_SHORT: "OPENDAOC"
+  SERVER_PORT: "10300"
+  UDP_IP: "0.0.0.0"
+  UDP_PORT: "10400"
+  UID: "1000"
