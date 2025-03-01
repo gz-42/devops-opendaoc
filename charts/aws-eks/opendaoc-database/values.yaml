@@ -1,5 +1,5 @@
 appName: opendaoc-database
-namespace: prod
+namespace: argocd
 replicaCount: 2
 image:
   name: ghcr.io/gz-42/opendaoc-database
