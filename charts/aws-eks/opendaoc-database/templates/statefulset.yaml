@@ -23,7 +23,7 @@ spec:
         ports:
           - containerPort: 3306
             protocol: TCP
-            name: {{ .Values.appName }}-port
+            name: db-port
         args:
           - --default-authentication-plugin=mysql_native_password 
           - --lower_case_table_names=1 
