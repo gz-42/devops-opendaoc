@@ -24,14 +24,14 @@ spec:
           - containerPort: 3306
             protocol: TCP
             name: db-port
-#        args:
-#          - --default-authentication-plugin=mysql_native_password 
-#          - --lower_case_table_names=1 
-#          - --character-set-server=utf8mb3 
-#          - --collation-server=utf8mb3_general_ci 
-#          - --innodb_large_prefix=1 
-#          - --innodb_file_format=Barracuda 
-#          - --innodb_file_per_table=1
+        args:
+          - --default-authentication-plugin=mysql_native_password 
+          - --lower_case_table_names=1 
+          - --character-set-server=utf8mb3 
+          - --collation-server=utf8mb3_general_ci 
+          - --innodb_large_prefix=1 
+          - --innodb_file_format=Barracuda 
+          - --innodb_file_per_table=1
         envFrom:
         - secretRef:
             name: {{ .Values.appName }}-secrets
