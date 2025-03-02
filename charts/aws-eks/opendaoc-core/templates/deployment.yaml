@@ -24,10 +24,10 @@ spec:
         ports:
           - containerPort: 10300
             protocol: TCP
-            name: {{ .Values.appName }}-tcp
+            name: tcp-port
           - containerPort: 10400
             protocol: UDP       
-            name: {{ .Values.appName }}-udp 
+            name: udp-port 
         envFrom:
         - secretRef:
             name: {{ .Values.appName }}-secrets
