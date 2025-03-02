@@ -4,6 +4,6 @@ replicaCount: 2
 image:
   name: ghcr.io/gz-42/opendaoc-database
   tag: 2025.02.1
-storageClassName: ebs-sc
+storageClassName: gp2
 MARIADB_ROOT_PASSWORD: ZGF0YXNjaWVudGVzdDIwMjU=
 #MARIADB_ROOT_PASSWORD: ${{ secrets.MARIADB_ROOT_PASSWORD }}
