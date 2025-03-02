@@ -1,5 +1,5 @@
 appName: opendaoc-core
-namespace: argocd
+namespace: prod
 replicaCount: 2
 image:
   name: ghcr.io/gz-42/opendaoc-core
