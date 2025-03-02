@@ -12,11 +12,11 @@ spec:
     app: {{ .Values.appName }}
   type: LoadBalancer
   ports:
-    - name: {{ .Values.appName }}-tcp
+    - name: tcp-port
       protocol: TCP
       port: 10300
       targetPort: 10300
-    - name: {{ .Values.appName }}-udp
+    - name: udp-port
       protocol: UDP
       port: 10400
       targetPort: 10400
