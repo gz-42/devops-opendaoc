@@ -1,0 +1,60 @@
+replicaCount: 2
+
+image:
+  repository: public.ecr.aws/eks/aws-load-balancer-controller
+  tag: v2.11.0
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: aws-load-balancer-controller
+  annotations:
+    eks.amazonaws.com/role-arn: ${aws_lbc_role_arn}
+
+
+clusterName: ${cluster_name}
+region: ${region}
+vpcId: ${vpc_id}
+
+podLabels:
+  app.kubernetes.io/name: aws-load-balancer-controller
+  app.kubernetes.io/part-of: aws-load-balancer-controller
+
+podAnnotations: {}
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+controller:
+  config:
+    enable-leader-election: "true"
+    v: "2"
+    aws-vpc-id: ${vpc_id}
+    aws-region: ${region}
+    enable-endpoint-slices: "true"
+    sync-period: 1m0s
+    instance-metadata-tags: enabled
+    target-health-check-interval-seconds: "20"
+    target-health-check-timeout-seconds: "6"
+    target-group-binding-listen-ports: '[{"TCP": 10300}, {"UDP": 10400}]'
+    nlb-target-type: "instance"
+    preserve-client-ip: "true"
+    enable-shield: "false"
+    enable-waf: "false"
+    enable-wafv2: "false"
+
+  service:
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-ssl-ports: ""
+      service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: "preserve_client_ip.enabled=true"
+      service.beta.kubernetes.io/aws-load-balancer-security-groups: "opendaoc_core_lb_sg"
+webhookConfig:
+  enabled: true
+  failurePolicy: Fail
+  certDir: "/tmp/k8s-webhook-server/serving-certs"
+  generateCert: true
