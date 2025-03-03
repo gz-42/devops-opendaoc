@@ -46,9 +46,10 @@ spec:
       name: opendaoc-db-data
     spec:
       accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ .Values.storageClassName }}
       resources:
         requests:
-          storage: 2Gi
+          storage: 2Gi       
 #      volumes:
 #        - name: {{ .Values.appName }}-data
 #          persistentVolumeClaim:
