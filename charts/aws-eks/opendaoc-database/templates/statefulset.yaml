@@ -40,17 +40,8 @@ spec:
         volumeMounts:
           - mountPath: /var/lib/mysql
             name: {{ .Values.appName }}-data
-      restartPolicy: Always
-  volumeClaimTemplates:
-  - metadata:
-      name: opendaoc-db-data
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: {{ .Values.storageClassName }}
-      resources:
-        requests:
-          storage: 2Gi       
-#      volumes:
-#        - name: {{ .Values.appName }}-data
-#          persistentVolumeClaim:
-#            claimName: {{ .Values.appName }}-data
+      restartPolicy: Always     
+      volumes:
+        - name: {{ .Values.appName }}-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.appName }}-data
