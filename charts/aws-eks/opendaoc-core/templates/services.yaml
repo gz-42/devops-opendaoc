@@ -14,11 +14,11 @@ metadata:
     service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: 10 
     service.beta.kubernetes.io/aws-load-balancer-attributes: "load_balancing.cross_zone.enabled=true"
     service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
-        service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: >
-          preserve_client_ip.enabled=true,
-          deregistration_delay.timeout_seconds=30,
-          stickiness.enabled=true,
-          stickiness.type=source_ip
+    service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: >
+      preserve_client_ip.enabled=true,
+      deregistration_delay.timeout_seconds=30,
+      stickiness.enabled=true,
+      stickiness.type=source_ip
 spec:
   externalTrafficPolicy: Local
   selector:
