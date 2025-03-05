@@ -1,7 +1,0 @@
-configs:
-    repositories:
-        devops-opendaoc:
-            name: devops-opendaoc
-            url: '${ devops_opendaoc_repo }'
-            type: git
-
