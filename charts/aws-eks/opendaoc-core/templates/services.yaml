@@ -15,7 +15,7 @@ spec:
 #  externalTrafficPolicy: Local
   selector:
     app: {{ .Values.appName }}
-  type: ClusterIP
+  type: LoadBalancer
   ports:
     - name: tcp-port
       protocol: TCP
