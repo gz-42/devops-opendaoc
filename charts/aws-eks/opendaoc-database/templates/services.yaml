@@ -4,10 +4,10 @@ metadata:
   name: {{ .Values.appName }}-services
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ .Values.appName }}
+    app.kubernetes.io/name: {{ .Values.appName }}
 spec:
   selector:
-    app: {{ .Values.appName }}
+    app.kubernetes.io/name: {{ .Values.appName }}
   clusterIP: None
   ports:
   - name: db-port
