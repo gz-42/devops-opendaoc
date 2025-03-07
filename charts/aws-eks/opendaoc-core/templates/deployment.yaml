@@ -3,19 +3,17 @@ kind: Deployment
 metadata:
   name: {{ .Values.appName }}
   namespace: {{ .Values.namespace }}
-  labels:
-      app: {{ .Values.appName }}
 spec:
   selector:
     matchLabels:
-      app: {{ .Values.appName }}
+      app.kubernetes.io/name: {{ .Values.appName }}
   replicas: {{ .Values.replicaCount }}
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app: {{ .Values.appName }}
+        app.kubernetes.io/name: {{ .Values.appName }}
     spec:
       containers:
       - name: {{ .Values.appName }}
@@ -25,9 +23,6 @@ spec:
           - containerPort: 10300
             protocol: TCP
             name: tcp-port
-          - containerPort: 10400
-            protocol: UDP       
-            name: udp-port 
         envFrom:
         - secretRef:
             name: {{ .Values.appName }}-secrets
