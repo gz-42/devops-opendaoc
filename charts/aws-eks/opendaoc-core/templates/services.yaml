@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: {{ .Values.appName }}-services
   namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.appName }}
 spec:
   selector:
     app.kubernetes.io/name: {{ .Values.appName }}
