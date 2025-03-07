@@ -1,4 +1,4 @@
-appName: opendaoc-db
+appName: opendaoc-database
 namespace: prod
 replicaCount: 1
 image:
