@@ -3,18 +3,16 @@ kind: StatefulSet
 metadata:
   name: {{ .Values.appName }}
   namespace: {{ .Values.namespace }}
-  labels:
-      app: {{ .Values.appName }}
 spec:
   serviceName: "{{ .Values.appName }}-services"
   selector:
     matchLabels:
-      app: {{ .Values.appName }}
+      app.kubernetes.io/name: {{ .Values.appName }}
   replicas: {{ .Values.replicaCount }}
   template:
     metadata:
       labels:
-        app: {{ .Values.appName }}
+        app.kubernetes.io/name: {{ .Values.appName }}
     spec:
       containers:
       - name: {{ .Values.appName }}
