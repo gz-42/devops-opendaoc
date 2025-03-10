@@ -52,5 +52,3 @@ spec:
       resources:
         requests:
           storage: 2Gi
-#          persistentVolumeClaim:
-#            claimName: {{ .Values.appName }}-data
