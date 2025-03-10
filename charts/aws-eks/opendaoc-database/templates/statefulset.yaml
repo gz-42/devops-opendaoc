@@ -43,5 +43,14 @@ spec:
       restartPolicy: Always     
       volumes:
         - name: {{ .Values.appName }}-data
-          persistentVolumeClaim:
-            claimName: {{ .Values.appName }}-data
+  volumeClaimTemplates:
+  - metadata:
+      name: {{ .Values.appName }}-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: {{ .Values.storageClassName }}
+      resources:
+        requests:
+          storage: 2Gi
+#          persistentVolumeClaim:
+#            claimName: {{ .Values.appName }}-data
