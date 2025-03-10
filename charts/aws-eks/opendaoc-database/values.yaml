@@ -1,6 +1,6 @@
 appName: opendaoc-database
 namespace: prod
-replicaCount: 1
+replicaCount: 3
 image:
   name: ghcr.io/gz-42/opendaoc-database
   tag: 2025.02.1
