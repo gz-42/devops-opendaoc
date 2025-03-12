@@ -140,7 +140,7 @@ variable "grafana_pwd" {
   default     = "{{ secret.GRAFANA_ADMIN_PASSWORD }}"
 }
 
-variable "grafana_ingress_tls_secret" {
+variable "grafana_tls_secret" {
   description = "Secret name for grafana TLS cert"
   type        = string
   sensitive   = true
