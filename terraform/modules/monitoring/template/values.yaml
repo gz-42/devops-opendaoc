@@ -25,6 +25,6 @@ grafana:
       - ${grafana_hostname}
     path: /
     tls:
-     - secretName: ${grafana_ingress_tls_secret}
+     - secretName: ${grafana_tls_secret}
        hosts:
        - ${grafana_hostname}
