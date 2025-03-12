@@ -57,7 +57,7 @@ jobs:
       - name: Initialize tfstate infrastructure
         id: init-tfstate
         run: |
-          cd tfstate-init
+          cd terraform/tfstate-init
           terraform init
           terraform apply -auto-approve | grep -v "token\|password\|secret\|key\|cert"
           cd ..
