@@ -1,0 +1,53 @@
+
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.11.1
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+kubectl:
+  labels:
+    app.kubernetes.io/name: velero-upgrade-crds
+    io.kubernetes.pod.namespace: velero
+
+upgradeCRDs: true
+cleanUpCRDs: true
+
+configuration:
+  backupStorageLocation:
+  - name: default
+    provider: ${provider}
+    bucket: ${bucket_name}
+    prefix: velero
+    config:
+      region: ${region}
+  volumeSnapshotLocation:
+  - name: default
+    provider: ${provider}
+    config:
+      region: ${region}
+  features: EnableCSI
+
+serviceAccount:
+  server:
+    create: true
+    name: velero-server
+    annotations:
+      eks.amazonaws.com/role-arn: ${role_arn}
+
+credentials:
+  useSecret: false
+
+schedules:
+  prod-backup:
+    disabled: false
+    schedule: "${backup_schedule}"
+    template:
+      ttl: "720h" # 30 days retention
+      includedNamespaces:
+        - ${namespace_to_backup}
+      storageLocation: default
+      snapshotVolumes: true
+      volumeSnapshotLocation: default

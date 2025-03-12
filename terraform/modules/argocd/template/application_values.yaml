@@ -1,0 +1,63 @@
+applications:
+  opendaoc-database:
+    namespace: argocd
+    project: devops-opendaoc
+    source:
+      repoURL: ${devops_opendaoc_repo}
+      targetRevision: HEAD
+      path: charts/aws-eks/opendaoc-database
+      helm:
+        valueFiles:
+          - values.yaml
+        values: |
+          MARIADB_ROOT_PASSWORD: ${mariadb_root_password}
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: ${profile}
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+    
+  opendaoc-core:
+    namespace: argocd
+    project: devops-opendaoc
+    additionalAnnotations:
+      argocd.argoproj.io/sync-wave: "1"
+      argocd.argoproj.io/depends-on: opendaoc-database
+    source:
+      repoURL: ${devops_opendaoc_repo}
+      targetRevision: HEAD
+      path: charts/aws-eks/opendaoc-core
+      helm:
+        valueFiles:
+          - values.yaml
+        values: |
+          DB_CONNECTION_STRING: "${db_connection_string}"
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: ${profile}
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+
+projects:
+  devops-opendaoc:
+    namespace: argocd
+    description: DevOps OpenDAoC
+    sourceRepos:
+      - '*'
+    destinations:
+      - namespace: ${profile}
+        server: https://kubernetes.default.svc
+    clusterResourceWhitelist:
+      - group: '*'
+        kind: '*'
+    namespaceResourceWhitelist:
+      - group: '*'
+        kind: '*'

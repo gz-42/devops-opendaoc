@@ -1,0 +1,30 @@
+alertmanager:
+  config:
+    route:
+      receiver: 'slack-k8s-admin'
+      routes:
+      - match:
+        receiver: 'slack-k8s-admin'
+        continue: true
+    receivers:
+    - name: 'slack-k8s-admin'
+      slack_configs:
+        - api_url: ${slack_webhook}
+          channel: ${slack_channel}
+          send_resolved: true
+grafana:
+  adminPassword: ${grafana_pwd}
+  ingress:
+    enabled: ${grafana_ingress_enabled}
+    ingressClassName: ${grafana_ingress_class}
+    annotations:
+      kubernetes.io/tls-acme: "${grafana_ingress_tls_acme_enabled}"
+      cert-manager.io/cluster-issuer: "letsencrypt-${profile}"
+      nginx.ingress.kubernetes.io/ssl-passthrough: "${grafana_ingress_ssl_passthrough_enabled}"
+    hosts:
+      - ${grafana_hostname}
+    path: /
+    tls:
+     - secretName: ${grafana_ingress_tls_secret_name}
+       hosts:
+       - ${grafana_hostname}

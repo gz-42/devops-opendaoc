@@ -1,0 +1,17 @@
+global:
+  domain: ${argocd_hostname}
+
+configs:
+  params:
+    server.insecure: true
+
+server:
+  ingress:
+    enabled: ${argocd_ingress_enabled}
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-${profile}"
+      kubernetes.io/tls-acme: "${argocd_ingress_tls_acme_enabled}"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "${argocd_ingress_force_ssl_redirect_enabled}"
+      nginx.ingress.kubernetes.io/ssl-passthrough: "${argocd_ingress_ssl_passthrough_enabled}"
+    ingressClassName: ${argocd_ingress_class}
+    tls: true

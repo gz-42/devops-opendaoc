@@ -1,0 +1,22 @@
+controller:
+  config:
+    stream-snippets: |
+      upstream opendaoc-core-services {
+          server opendaoc-core-services.prod.svc.cluster.local:10300;
+          }
+      server {
+          listen 10300;
+          server_name ${devops_opendaoc_hostname};
+          proxy_pass "opendaoc-core-services";
+          }
+  allowSnippetAnnotations: true
+  ingressClassResource:
+    default: true
+  kind: DaemonSet
+  service:
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    externalTrafficPolicy: "Local"
+tcp:
+    10300: "prod/opendaoc-core-services:10300"
