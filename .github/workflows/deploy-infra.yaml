@@ -37,7 +37,9 @@ jobs:
     needs: security-scan
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.confirm_deploy == 'yes' }}
-    
+    outputs:
+      lb_hostname: ${{ steps.set-outputs.outputs.lb_hostname }}
+        
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
