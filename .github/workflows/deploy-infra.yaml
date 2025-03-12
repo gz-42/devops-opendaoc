@@ -103,7 +103,7 @@ jobs:
  
   update_dns:
     needs: terraform-deploy
-    uses: ./.github/workflows/update-dns-records.yml
+    uses: ./.github/workflows/update-dns-records.yaml
     with:
       lb_hostname: ${{ needs.terraform-deploy.outputs.lb_hostname }}
     secrets: inherit
