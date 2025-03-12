@@ -46,6 +46,7 @@ jobs:
 
       - name: Create terraform.tfvars
         run: |
+          cd terraform
           cat > terraform.tfvars << EOF
           region = "${{ secrets.AWS_REGION }}"
           prefix = "${{ secrets.TF_STATE_PREFIX }}"
@@ -83,6 +84,7 @@ jobs:
         env:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
+          cd terraform
           terraform plan -destroy -out=destroy.tfplan | grep -v "token\|password\|secret\|key\|cert"
           
       - name: Terraform Apply Destroy Plan
@@ -90,14 +92,17 @@ jobs:
         env:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
+          cd terraform
           terraform apply -auto-approve destroy.tfplan | grep -v "token\|password\|secret\|key\|cert"
           
       - name: Cleanup sensitive files
         if: always()
         run: |
+          cd terraform
           rm -f destroy.tfplan
           rm -f crash.log
           rm -f terraform.tfstate*
+          rm -f terraform.tfvars
           
   destroy-tfstate-infrastructure:
     name: "Destroy Terraform State Infrastructure"
@@ -123,6 +128,24 @@ jobs:
           
       - name: Destroy Terraform State Infrastructure
         run: |
+          cd terraform
           cd tfstate-init
+          touch terraform.tfvars
+          chmod 644 terraform.tfvars
+          cat > terraform.tfvars << EOF
+          region = "${{ secrets.AWS_REGION }}"
+          prefix = "${{ secrets.TF_STATE_PREFIX }}"
+          dynamodb_table_name = "${{ secrets.TF_STATE_KEY }}"
+          EOF          
           terraform init
           terraform destroy -auto-approve | grep -v "token\|password\|secret\|key\|cert"
+
+      - name: Cleanup sensitive files from Terraform State Infrastructure
+        if: always()
+        run: |
+          cd terraform
+          cd tfstate-init
+          rm -f destroy.tfplan
+          rm -f crash.log
+          rm -f terraform.tfstate*
+          rm -f terraform.tfvars
