@@ -59,7 +59,6 @@ jobs:
           pwd
           ls -larth
           cd terraform
-          ls -larth
           cat > terraform.tfvars << EOF
           region = "${{ secrets.AWS_REGION }}"
           project_name = "${{ secrets.PROJECT_NAME }}"
@@ -79,24 +78,33 @@ jobs:
           slack_webhook = "${{ secrets.SLACK_WEBHOOK }}"
           slack_channel = "${{ secrets.SLACK_CHANNEL }}"
           EOF
+
           cd tfstate-init
+          pwd
+          ls -larth
           cat > terraform.tfvars << EOF
           region = "${{ secrets.AWS_REGION }}"
           prefix = "${{ secrets.TF_STATE_PREFIX }}"
           dynamodb_table_name = "${{ secrets.TF_STATE_KEY }}"
           EOF
-
+          
       - name: Initialize tfstate infrastructure
         id: init-tfstate
         run: |
+          pwd
+          ls -larth
           terraform init
           terraform apply -auto-approve | grep -v "token\|password\|secret\|key\|cert"
           cd ..
+          pwd
+          ls -larth
         continue-on-error: true
         
       - name: Terraform Init
         id: init
         run: |
+          pwd
+          ls -larth
           terraform init \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=${{ secrets.TF_STATE_KEY }}" \
@@ -108,12 +116,16 @@ jobs:
         env:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
+          pwd
+          ls -larth
           terraform plan -out=tfplan | grep -v "token\|password\|secret\|key\|cert"
           
       - name: Terraform Apply
         env:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
+          pwd
+          ls -larth
           terraform apply -auto-approve tfplan | grep -v "token\|password\|secret\|key\|cert"
       
       - name: Set Load Balancer Hostname Output
@@ -131,11 +143,10 @@ jobs:
           rm -f tfplan
           rm -f crash.log
           rm -f terraform.tfstate*
-          rm -f terraform.tfvars
  
   update_dns:
     needs: terraform-deploy
-    uses: ./.github/workflows/update-dns-records.yaml
+    uses: ./.github/workflows/update-dns-records.yml
     with:
       lb_hostname: ${{ needs.terraform-deploy.outputs.lb_hostname }}
     secrets: inherit
