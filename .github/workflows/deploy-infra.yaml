@@ -59,6 +59,8 @@ jobs:
           pwd
           ls -larth
           cd terraform
+          touch terraform.tfvars
+          chmod 644 terraform.tfvars
           cat > terraform.tfvars << EOF
           region = "${{ secrets.AWS_REGION }}"
           project_name = "${{ secrets.PROJECT_NAME }}"
@@ -82,17 +84,18 @@ jobs:
           cd tfstate-init
           pwd
           ls -larth
+          touch terraform.tfvars
+          chmod 644 terraform.tfvars
           cat > terraform.tfvars << EOF
           region = "${{ secrets.AWS_REGION }}"
           prefix = "${{ secrets.TF_STATE_PREFIX }}"
           dynamodb_table_name = "${{ secrets.TF_STATE_KEY }}"
           EOF
+          ls -larth
           
       - name: Initialize tfstate infrastructure
         id: init-tfstate
         run: |
-          pwd
-          ls -larth
           terraform init
           terraform apply -auto-approve | grep -v "token\|password\|secret\|key\|cert"
           cd ..
