@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   validate-destroy:
@@ -47,10 +48,10 @@ jobs:
       - name: Create terraform.tfvars
         run: |
           cd terraform
-          cat > terraform.tfvars << EOF
+          touch terraform.tfvars
+          chmod 644 terraform.tfvars
+          cat > terraform.tfvars << 'EOF'
           region = "${{ secrets.AWS_REGION }}"
-          prefix = "${{ secrets.TF_STATE_PREFIX }}"
-          dynamodb_table_name = "${{ secrets.TF_STATE_KEY }}"
           project_name = "${{ secrets.PROJECT_NAME }}"
           root_domain_name = "${{ secrets.DOMAIN_NAME }}"
           vpc_cidr = "${{ secrets.VPC_CIDR }}"
@@ -65,9 +66,10 @@ jobs:
           db_connection_string = "${{ secrets.DB_CONNECTION_STRING }}"
           grafana_hostname = "${{ secrets.GRAFANA_HOSTNAME }}"
           grafana_pwd = "${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+          grafana_tls_secret = "${{ secrets.GRAFANA_TLS_SECRET }}"
           slack_webhook = "${{ secrets.SLACK_WEBHOOK }}"
           slack_channel = "${{ secrets.SLACK_CHANNEL }}"
-          EOF 
+          EOF
 
       - name: Terraform Init
         id: init
@@ -85,7 +87,13 @@ jobs:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
           cd terraform
+          set -e  # Exit immediately if a command fails
           terraform plan -destroy -out=destroy.tfplan | grep -v "token\|password\|secret\|key\|cert"
+          # Verify the plan file exists
+          if [ ! -f destroy.tfplan ]; then
+            echo "::error::destroy.tfplan file was not created!"
+            exit 1
+          fi
           
       - name: Terraform Apply Destroy Plan
         id: destroy
@@ -93,6 +101,11 @@ jobs:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
           cd terraform
+          # Verify the plan file exists before applying
+          if [ ! -f destroy.tfplan ]; then
+            echo "::error::destroy.tfplan file not found!"
+            exit 1
+          fi
           terraform apply -auto-approve destroy.tfplan | grep -v "token\|password\|secret\|key\|cert"
           
       - name: Cleanup sensitive files
@@ -126,25 +139,27 @@ jobs:
         with:
           terraform_version: 1.5.7
           
-      - name: Destroy Terraform State Infrastructure
+      - name: Create tfstate terraform.tfvars
         run: |
-          cd terraform
-          cd tfstate-init
+          cd terraform/tfstate-init
           touch terraform.tfvars
           chmod 644 terraform.tfvars
-          cat > terraform.tfvars << EOF
+          cat > terraform.tfvars << 'EOF'
           region = "${{ secrets.AWS_REGION }}"
           prefix = "${{ secrets.TF_STATE_PREFIX }}"
           dynamodb_table_name = "${{ secrets.TF_STATE_KEY }}"
-          EOF          
+          EOF
+          
+      - name: Destroy Terraform State Infrastructure
+        run: |
+          cd terraform/tfstate-init
           terraform init
           terraform destroy -auto-approve | grep -v "token\|password\|secret\|key\|cert"
 
       - name: Cleanup sensitive files from Terraform State Infrastructure
         if: always()
         run: |
-          cd terraform
-          cd tfstate-init
+          cd terraform/tfstate-init
           rm -f destroy.tfplan
           rm -f crash.log
           rm -f terraform.tfstate*
