@@ -1,4 +1,4 @@
-name: "Deploy Infrastructure and Update DNS"
+name: "Deploy Infra-Update DNS Records"
 
 on:
   workflow_dispatch:
@@ -34,7 +34,7 @@ jobs:
           framework: terraform
 
   deploy-and-configure:
-    name: "Deploy Infrastructure and Configure DNS"
+    name: "Deploy Infra and Update DNS Records"
     needs: test-code-security-scan
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.confirm_deploy == 'yes' }}
@@ -282,7 +282,7 @@ jobs:
           echo "DNS changes may take some time to propagate based on TTL settings."
       
       #-----------------------------------------------
-      # CLEANUP
+      # PHASE 3: CLEANUP
       #-----------------------------------------------
       - name: Cleanup sensitive files
         if: always()
