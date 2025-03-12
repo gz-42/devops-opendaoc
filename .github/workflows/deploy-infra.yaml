@@ -56,10 +56,9 @@ jobs:
 
       - name: Create terraform.tfvars
         run: |
+          cd terraform
           cat > terraform.tfvars << EOF
           region = "${{ secrets.AWS_REGION }}"
-          prefix = "${{ secrets.TF_STATE_PREFIX }}"
-          dynamodb_table_name = "${{ secrets.TF_STATE_KEY }}"
           project_name = "${{ secrets.PROJECT_NAME }}"
           root_domain_name = "${{ secrets.DOMAIN_NAME }}"
           vpc_cidr = "${{ secrets.VPC_CIDR }}"
@@ -76,13 +75,17 @@ jobs:
           grafana_pwd = "${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
           slack_webhook = "${{ secrets.SLACK_WEBHOOK }}"
           slack_channel = "${{ secrets.SLACK_CHANNEL }}"
-          EOF 
+          EOF
+          cd tfstate-init
+          cat > terraform.tfvars << EOF
+          region = "${{ secrets.AWS_REGION }}"
+          prefix = "${{ secrets.TF_STATE_PREFIX }}"
+          dynamodb_table_name = "${{ secrets.TF_STATE_KEY }}"
+          EOF
 
       - name: Initialize tfstate infrastructure
         id: init-tfstate
         run: |
-          cd terraform
-          cd tfstate-init
           terraform init
           terraform apply -auto-approve | grep -v "token\|password\|secret\|key\|cert"
           cd ..
