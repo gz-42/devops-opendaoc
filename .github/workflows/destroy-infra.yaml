@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   validate-destroy:
@@ -87,13 +86,7 @@ jobs:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
           cd terraform
-          set -e  # Exit immediately if a command fails
           terraform plan -destroy -out=destroy.tfplan | grep -v "token\|password\|secret\|key\|cert"
-          # Verify the plan file exists
-          if [ ! -f destroy.tfplan ]; then
-            echo "::error::destroy.tfplan file was not created!"
-            exit 1
-          fi
           
       - name: Terraform Apply Destroy Plan
         id: destroy
@@ -101,11 +94,6 @@ jobs:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
           cd terraform
-          # Verify the plan file exists before applying
-          if [ ! -f destroy.tfplan ]; then
-            echo "::error::destroy.tfplan file not found!"
-            exit 1
-          fi
           terraform apply -auto-approve destroy.tfplan | grep -v "token\|password\|secret\|key\|cert"
           
       - name: Cleanup sensitive files
@@ -147,14 +135,13 @@ jobs:
           cat > terraform.tfvars << 'EOF'
           region = "${{ secrets.AWS_REGION }}"
           prefix = "${{ secrets.TF_STATE_PREFIX }}"
-          dynamodb_table_name = "${{ secrets.TF_STATE_KEY }}"
           EOF
           
       - name: Destroy Terraform State Infrastructure
         run: |
           cd terraform/tfstate-init
-          terraform init
-          terraform destroy -auto-approve | grep -v "token\|password\|secret\|key\|cert"
+          terraform init -compact-warnings
+          terraform destroy -auto-approve -compact-warnings | grep -v "token\|password\|secret\|key\|cert"
 
       - name: Cleanup sensitive files from Terraform State Infrastructure
         if: always()
