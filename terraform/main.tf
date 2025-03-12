@@ -110,14 +110,14 @@ module "argocd" {
 }
 
 module "kube_prometheus_stack" {
-  source                      = "./modules/monitoring"
-  profile                     = var.profile
-  slack_webhook               = var.slack_webhook
-  slack_channel               = var.slack_channel
-  grafana_hostname            = var.grafana_hostname
-  grafana_pwd                 = var.grafana_pwd
-  grafana_ingress_tls_secret  = var.grafana_ingress_tls_secret
-  depends_on                  = [module.ingress]
+  source              = "./modules/monitoring"
+  profile             = var.profile
+  slack_webhook       = var.slack_webhook
+  slack_channel       = var.slack_channel
+  grafana_hostname    = var.grafana_hostname
+  grafana_pwd         = var.grafana_pwd
+  grafana_tls_secret  = var.grafana_tls_secret
+  depends_on          = [module.ingress]
 }
 
 module "velero" {
