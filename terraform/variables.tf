@@ -140,6 +140,13 @@ variable "grafana_pwd" {
   default     = "{{ secret.GRAFANA_ADMIN_PASSWORD }}"
 }
 
+variable "grafana_ingress_tls_secret_name" {
+  description = "Secret name for grafana TLS cert"
+  type        = string
+  sensitive   = true
+  default     = "{{ secret.GRAFANA_TLS_SECRET }}"
+}
+
 variable "slack_webhook" {
   description = "Slack webhook for alerts"
   type        = string
