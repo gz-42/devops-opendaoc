@@ -8,7 +8,6 @@ variable "dynamodb_table_name" {
   description = "The name of the DynamoDB table for Terraform state locking"
   type        = string
   sensitive   = true
-  default     = "terraform.tfstate"
-#  default     = "{{ secret.TF_STATE_KEY }}"
+  default     = "{{ secret.TF_STATE_KEY }}"
 }
 
