@@ -1,4 +1,4 @@
-name: "Destroy Terraform Infrastructure"
+name: "💥 Destroy Terraform Infrastructure"
 
 on:
   workflow_dispatch:
@@ -7,44 +7,72 @@ on:
         description: 'Type "destroy-infrastructure" to confirm destruction'
         required: true
         type: string
+      run_main_destroy:
+        description: 'Run Main Infrastructure Destroy'
+        required: true
+        type: boolean
+        default: true
+      run_state_destroy:
+        description: 'Run Terraform State Infrastructure Destroy'
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
 jobs:
+  #---------------------------------------------------
+  # 🔐 VALIDATE DESTROY REQUEST
+  #---------------------------------------------------
   validate-destroy:
-    name: "Validate Destroy Request"
+    name: "🔐 Validate Destroy Request"
     runs-on: ubuntu-latest
     steps:
-      - name: Check confirmation phrase
+      - name: "🔍 Check confirmation phrase"
         if: github.event.inputs.confirm_destroy != 'destroy-infrastructure'
         run: |
-          echo "Error: Confirmation phrase does not match 'destroy-infrastructure'"
+          echo "::error::Confirmation phrase does not match 'destroy-infrastructure'"
           exit 1
+          
+      - name: "⚠️ Check state destruction safeguard"
+        if: github.event.inputs.run_state_destroy == 'true' && github.event.inputs.run_main_destroy != 'true'
+        run: |
+          echo "::error::Cannot destroy state infrastructure without destroying main infrastructure first"
+          echo "::error::Please select 'Run Main Infrastructure Destroy' or deselect 'Run Terraform State Infrastructure Destroy'"
+          exit 1
+          
+      - name: "✅ Validation successful"
+        run: |
+          echo "::notice::Validation successful - proceeding with selected destruction jobs"
 
+  #---------------------------------------------------
+  # 🧨 TERRAFORM DESTROY MAIN INFRASTRUCTURE
+  #---------------------------------------------------
   terraform-destroy:
-    name: "Terraform Destroy"
+    name: "🧨 Terraform Destroy Main Infrastructure"
     needs: validate-destroy
     runs-on: ubuntu-latest
     environment: destruction
+    if: github.event.inputs.run_main_destroy == 'true'
     
     steps:
-      - name: Checkout code
+      - name: "📥 Checkout code"
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: "☁️ Configure AWS credentials"
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
           
-      - name: Setup Terraform
+      - name: "🔧 Setup Terraform"
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.5.7
 
-      - name: Create terraform.tfvars
+      - name: "📝 Create terraform.tfvars"
         run: |
           cd terraform
           touch terraform.tfvars
@@ -70,33 +98,40 @@ jobs:
           slack_channel = "${{ secrets.SLACK_CHANNEL }}"
           EOF
 
-      - name: Terraform Init
+      - name: "🔄 Terraform Init"
         id: init
         run: |
           cd terraform
+          echo "::group::Terraform Init"
           terraform init \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=${{ secrets.TF_STATE_KEY }}" \
             -backend-config="region=${{ secrets.AWS_REGION }}" \
             -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}"
+          echo "::endgroup::"
             
-      - name: Terraform Plan Destroy
+      - name: "📋 Terraform Plan Destroy"
         id: plan-destroy
         env:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
           cd terraform
+          echo "::group::Terraform Plan Destroy"
           terraform plan -destroy -out=destroy.tfplan | grep -v "token\|password\|secret\|key\|cert"
+          echo "::endgroup::"
           
-      - name: Terraform Apply Destroy Plan
+      - name: "💥 Terraform Apply Destroy Plan"
         id: destroy
         env:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
           cd terraform
+          echo "::group::Terraform Apply Destroy"
           terraform apply -auto-approve destroy.tfplan | grep -v "token\|password\|secret\|key\|cert"
+          echo "::endgroup::"
+          echo "::notice::🔥 Main infrastructure has been successfully destroyed!"
           
-      - name: Cleanup sensitive files
+      - name: "🧹 Cleanup sensitive files"
         if: always()
         run: |
           cd terraform
@@ -105,29 +140,37 @@ jobs:
           rm -f terraform.tfstate*
           rm -f terraform.tfvars
           
+  #---------------------------------------------------
+  # 🗑️ DESTROY TERRAFORM STATE INFRASTRUCTURE
+  #---------------------------------------------------
   destroy-tfstate-infrastructure:
-    name: "Destroy Terraform State Infrastructure"
-    needs: terraform-destroy
+    name: "🗑️ Destroy Terraform State Infrastructure"
+    needs: [validate-destroy, terraform-destroy]
     runs-on: ubuntu-latest
     environment: destruction
+    if: |
+      always() && 
+      github.event.inputs.run_state_destroy == 'true' && 
+      github.event.inputs.run_main_destroy == 'true' && 
+      needs.terraform-destroy.result == 'success'
     
     steps:
-      - name: Checkout code
+      - name: "📥 Checkout code"
         uses: actions/checkout@v4
         
-      - name: Configure AWS credentials
+      - name: "☁️ Configure AWS credentials"
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
           
-      - name: Setup Terraform
+      - name: "🔧 Setup Terraform"
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.5.7
           
-      - name: Create tfstate terraform.tfvars
+      - name: "📝 Create tfstate terraform.tfvars"
         run: |
           cd terraform/tfstate-init
           touch terraform.tfvars
@@ -137,13 +180,19 @@ jobs:
           prefix = "${{ secrets.TF_STATE_PREFIX }}"
           EOF
           
-      - name: Destroy Terraform State Infrastructure
+      - name: "💥 Destroy Terraform State Infrastructure"
         run: |
           cd terraform/tfstate-init
+          echo "::group::Terraform Init"
           terraform init -compact-warnings
+          echo "::endgroup::"
+          
+          echo "::group::Terraform Destroy"
           terraform destroy -auto-approve -compact-warnings | grep -v "token\|password\|secret\|key\|cert"
+          echo "::endgroup::"
+          echo "::notice::🔥 Terraform state infrastructure has been successfully destroyed!"
 
-      - name: Cleanup sensitive files from Terraform State Infrastructure
+      - name: "🧹 Cleanup sensitive files"
         if: always()
         run: |
           cd terraform/tfstate-init
@@ -151,3 +200,124 @@ jobs:
           rm -f crash.log
           rm -f terraform.tfstate*
           rm -f terraform.tfvars
+
+  #---------------------------------------------------
+  # 🔔 NOTIFICATION
+  #---------------------------------------------------
+  notify:
+    name: "🔔 Send Notification"
+    needs: [validate-destroy, terraform-destroy, destroy-tfstate-infrastructure]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: "📊 Determine destruction status"
+        id: status
+        run: |
+          # Define which jobs we should check based on inputs
+          CHECK_MAIN="${{ github.event.inputs.run_main_destroy }}"
+          CHECK_STATE="${{ github.event.inputs.run_state_destroy }}"
+          
+          # Initialize status
+          STATUS="success"
+          MESSAGE="Selected destruction jobs completed successfully"
+          
+          # Check validation job first (required for all)
+          if [ "${{ needs.validate-destroy.result }}" != "success" ]; then
+            STATUS="failure"
+            MESSAGE="Destroy validation failed - check the confirmation phrase or safeguard conditions"
+          fi
+          
+          # Check main infrastructure job if it was run
+          if [ "$CHECK_MAIN" == "true" ] && [ "${{ needs.terraform-destroy.result }}" != "success" ]; then
+            STATUS="failure"
+            MESSAGE="Main infrastructure destruction failed"
+          fi
+          
+          # Check state infrastructure job if it was run and main infra was also run/successful
+          if [ "$CHECK_STATE" == "true" ] && [ "$CHECK_MAIN" == "true" ] && [ "${{ needs.terraform-destroy.result }}" == "success" ]; then
+            if [ "${{ needs.destroy-tfstate-infrastructure.result }}" != "success" ]; then
+              STATUS="failure"
+              MESSAGE="State infrastructure destruction failed"
+            fi
+          fi
+          
+          # Set outputs
+          if [ "$STATUS" == "success" ]; then
+            echo "destruction_status=success" >> $GITHUB_OUTPUT
+            echo "status_emoji=✅" >> $GITHUB_OUTPUT
+            echo "status_message=$MESSAGE" >> $GITHUB_OUTPUT
+          else
+            echo "destruction_status=failure" >> $GITHUB_OUTPUT
+            echo "status_emoji=❌" >> $GITHUB_OUTPUT
+            echo "status_message=$MESSAGE. Check job logs for details." >> $GITHUB_OUTPUT
+          fi
+          
+          # List executed jobs for summary
+          JOBS_RUN=""
+          if [ "$CHECK_MAIN" == "true" ]; then JOBS_RUN="$JOBS_RUN Main Infrastructure"; fi
+          if [ "$CHECK_STATE" == "true" ] && [ "$CHECK_MAIN" == "true" ] && [ "${{ needs.terraform-destroy.result }}" == "success" ]; then 
+            JOBS_RUN="$JOBS_RUN, State Infrastructure"; 
+          fi
+          echo "jobs_run=$JOBS_RUN" >> $GITHUB_OUTPUT
+      
+      - name: "📱 Send Slack notification"
+        if: env.SLACK_WEBHOOK != ''
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "${{ steps.status.outputs.status_emoji }} Infrastructure destruction: ${{ steps.status.outputs.destruction_status }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "${{ steps.status.outputs.status_emoji }} Infrastructure Destruction: ${{ steps.status.outputs.destruction_status }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Jobs Run:*\n${{ steps.status.outputs.jobs_run }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn", 
+                    "text": "${{ steps.status.outputs.status_message }}"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow Run"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          
+      - name: "📢 Output final status"
+        run: |
+          echo "::notice::${{ steps.status.outputs.status_emoji }} Infrastructure destruction: ${{ steps.status.outputs.destruction_status }}"
+          echo "::notice::Jobs executed: ${{ steps.status.outputs.jobs_run }}"
+          echo "::notice::${{ steps.status.outputs.status_message }}"
