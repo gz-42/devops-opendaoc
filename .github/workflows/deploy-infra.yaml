@@ -80,7 +80,7 @@ jobs:
           slack_webhook = "${{ secrets.SLACK_WEBHOOK }}"
           slack_channel = "${{ secrets.SLACK_CHANNEL }}"
           EOF
-
+          cat terraform.tfvars
           cd tfstate-init
           pwd
           ls -larth
@@ -91,6 +91,7 @@ jobs:
           prefix = "${{ secrets.TF_STATE_PREFIX }}"
           dynamodb_table_name = "${{ secrets.TF_STATE_KEY }}"
           EOF
+          cat terraform.tfvars
           ls -larth
           
       - name: Initialize tfstate infrastructure
