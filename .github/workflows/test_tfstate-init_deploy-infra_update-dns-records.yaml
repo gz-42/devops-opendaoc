@@ -1,0 +1,590 @@
+name: "🚀 Deploy Infrastructure and Configure DNS"
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_deploy:
+        description: 'Type "yes" to confirm deployment'
+        required: true
+        type: string
+      run_test_code_quality_security_scan:
+        description: 'Run Test Code Quality and Security Scan'
+        required: true
+        default: true
+        type: boolean
+      run_state_init:
+        description: 'Initialize Terraform state backend'
+        required: true
+        default: true
+        type: boolean
+      run_infrastructure:
+        description: 'Deploy infrastructure'
+        required: true
+        default: true
+        type: boolean
+      run_dns_update:
+        description: 'Update DNS records'
+        required: true
+        default: true
+        type: boolean
+      custom_lb_hostname:
+        description: 'Custom load balancer hostname (for DNS updates only)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  artifacts: write
+
+jobs:
+  #---------------------------------------------------
+  # 🔍 TEST CODE QUALITY VALIDATION AND SECURITY SCAN
+  #---------------------------------------------------
+  test-code-quality-security-scan:
+    name: "🔍 Test Code Quality and Security Scan"
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm_deploy == 'yes' && github.event.inputs.run_test_code_quality_security_scan == 'true' }}
+    steps:
+      - name: "📥 Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "🛡️ Run tfsec security scan"
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          soft_fail: true
+
+      - name: "📊 Run policy check with checkov"
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          soft_fail: true
+          framework: terraform
+          
+      - name: "✅ Validation complete"
+        run: echo "::notice::Test Code Quality and Security Scan completed successfully!"
+
+  #---------------------------------------------------
+  # 🏗️ TERRAFORM STATE INITIALIZATION
+  #---------------------------------------------------
+  init-tf-state:
+    name: "🏗️ Initialize Terraform State"
+    needs: [test-code-quality-security-scan]
+    if: |
+      always() && 
+      (needs.test-code-quality-security-scan.result == 'success' || needs.test-code-quality-security-scan.result == 'skipped') && 
+      github.event.inputs.run_state_init == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: "📥 Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "☁️ Configure AWS credentials"
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          
+      - name: "🔧 Setup Terraform"
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+
+      - name: "📝 Create tfstate configuration"
+        run: |
+          cd terraform/tfstate-init
+          cat > terraform.tfvars << 'EOF'
+          region = "${{ secrets.AWS_REGION }}"
+          prefix = "${{ secrets.TF_STATE_PREFIX }}"
+          EOF
+          
+      - name: "🚀 Initialize and apply state configuration"
+        run: |
+          cd terraform/tfstate-init
+          echo "::group::Terraform Init"
+          terraform init -compact-warnings
+          echo "::endgroup::"
+          
+          echo "::group::Terraform Apply"
+          terraform apply -auto-approve -compact-warnings | grep -v -E "token|password|secret|key|cert|hostname|endpoint|connection|url|address|auth"
+          echo "::endgroup::"
+        continue-on-error: true
+      
+      - name: "🧹 Cleanup sensitive files"
+        if: always()
+        run: |
+          cd terraform/tfstate-init
+          rm -f terraform.tfvars crash.log terraform.tfstate*
+  
+  #-----------------------------------------------
+  # 🌍 INFRASTRUCTURE DEPLOYMENT
+  #-----------------------------------------------
+  deploy-infrastructure:
+    name: "🌍 Deploy Infrastructure"
+    needs: [init-tf-state]
+    if: |
+      always() && 
+      (needs.init-tf-state.result == 'success' || needs.init-tf-state.result == 'skipped') && 
+      github.event.inputs.run_infrastructure == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: "📥 Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "☁️ Configure AWS credentials"
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          
+      - name: "🔧 Setup Terraform"
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+
+      - name: "📝 Create terraform.tfvars"
+        run: |
+          cd terraform
+          cat > terraform.tfvars << 'EOF'
+          region = "${{ secrets.AWS_REGION }}"
+          project_name = "${{ secrets.PROJECT_NAME }}"
+          root_domain_name = "${{ secrets.DOMAIN_NAME }}"
+          vpc_cidr = "${{ secrets.VPC_CIDR }}"
+          public_subnet_cidrs = ["${{ secrets.VPC_PUBLIC_SUBNETS }}"]
+          private_subnet_cidrs = ["${{ secrets.VPC_PRIVATE_SUBNETS }}"]
+          cluster_name = "${{ secrets.CLUSTER_NAME }}"
+          group_users = ["${{ secrets.GROUP_USERS }}"]
+          email = "${{ secrets.EMAIL }}"
+          devops_opendaoc_hostname = "${{ secrets.DEVOPS_OPENDAOC_HOSTNAME }}"
+          argocd_hostname = "${{ secrets.ARGOCD_HOSTNAME }}"
+          mariadb_root_password = "${{ secrets.MARIADB_ROOT_PASSWORD }}"
+          db_connection_string = "${{ secrets.DB_CONNECTION_STRING }}"
+          grafana_hostname = "${{ secrets.GRAFANA_HOSTNAME }}"
+          grafana_pwd = "${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+          grafana_tls_secret = "${{ secrets.GRAFANA_TLS_SECRET }}"
+          slack_webhook = "${{ secrets.SLACK_WEBHOOK }}"
+          slack_channel = "${{ secrets.SLACK_CHANNEL }}"
+          EOF
+        
+      - name: "🔄 Terraform Init"
+        run: |
+          cd terraform
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ secrets.TF_STATE_KEY }}" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}" \
+            -compact-warnings
+            
+      - name: "📋 Terraform Plan"
+        run: |
+          cd terraform
+          echo "::group::Terraform Plan"
+          terraform plan -out=tfplan -compact-warnings | grep -v -E "token|password|secret|key|cert|hostname|endpoint|connection|url|address|auth"
+          echo "::endgroup::"
+          
+      - name: "⚡ Terraform Apply"
+        run: |
+          cd terraform
+          echo "::group::Terraform Apply"
+          terraform apply -auto-approve tfplan -compact-warnings | grep -v -E "token|password|secret|key|cert|hostname|endpoint|connection|url|address|auth"
+          echo "::endgroup::"
+          
+          # Extract outputs to json
+          terraform output -json > terraform_outputs.json
+      
+      - name: "🔍 Extract Load Balancer Hostname"
+        id: extract-hostname
+        run: |
+          cd terraform
+          
+          # Extract the LB hostname but don't echo it
+          LB_HOSTNAME=$(cat terraform_outputs.json | jq -r '.load_balancer_hostname.value')
+          
+          # Create a masked version for logs
+          echo "::add-mask::$LB_HOSTNAME"
+          
+          # Save to environment and file without echo
+          echo "LB_HOSTNAME=$LB_HOSTNAME" >> $GITHUB_ENV
+          echo "$LB_HOSTNAME" > lb_hostname.txt
+          
+          echo "✅ Load balancer hostname retrieved and masked successfully"
+          
+      - name: "📦 Upload hostname artifact"
+        uses: actions/upload-artifact@v3
+        with:
+          name: lb-hostname-${{ github.run_id }}
+          path: terraform/lb_hostname.txt
+          retention-days: 1
+          
+      - name: "🧹 Cleanup sensitive files"
+        if: always()
+        run: |
+          cd terraform
+          rm -f tfplan terraform_outputs.json crash.log terraform.tfstate* terraform.tfvars
+
+  #-----------------------------------------------
+  # 🔄 DNS CONFIGURATION
+  #-----------------------------------------------
+  update-dns:
+    name: "🔄 Update DNS Records"
+    needs: [deploy-infrastructure]
+    if: |
+      always() && 
+      (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped') && 
+      github.event.inputs.run_dns_update == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: "📥 Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "🧩 Set up custom hostname handling"
+        id: hostname-setup
+        run: |
+          CUSTOM_HOSTNAME="${{ github.event.inputs.custom_lb_hostname }}"
+          if [ -n "$CUSTOM_HOSTNAME" ]; then
+            echo "Using custom load balancer hostname provided in workflow input"
+            echo "::add-mask::$CUSTOM_HOSTNAME"
+            echo "LB_HOSTNAME=$CUSTOM_HOSTNAME" >> $GITHUB_ENV
+            echo "USING_CUSTOM_HOSTNAME=true" >> $GITHUB_OUTPUT
+          else
+            echo "No custom hostname provided, will use artifact from infrastructure job"
+            echo "USING_CUSTOM_HOSTNAME=false" >> $GITHUB_OUTPUT
+          fi
+        
+      - name: "⚠️ Check for artifact when needed"
+        if: needs.deploy-infrastructure.result == 'skipped' && steps.hostname-setup.outputs.USING_CUSTOM_HOSTNAME == 'false'
+        run: |
+          echo "::warning::Running DNS update with skipped infrastructure deployment."
+          echo "::warning::This requires either a previously successful infrastructure deployment artifact or a custom hostname input."
+
+      - name: "📦 Download hostname artifact"
+        if: steps.hostname-setup.outputs.USING_CUSTOM_HOSTNAME == 'false'
+        uses: actions/download-artifact@v3
+        with:
+          name: lb-hostname-${{ github.run_id }}
+        continue-on-error: ${{ needs.deploy-infrastructure.result == 'skipped' }}
+      
+      - name: "🔧 Set up Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: "📚 Install dependencies"
+        run: npm install axios
+      
+      - name: "🔐 Set Load Balancer Hostname from artifact"
+        if: steps.hostname-setup.outputs.USING_CUSTOM_HOSTNAME == 'false'
+        run: |
+          if [ -f "lb_hostname.txt" ]; then
+            LB_HOSTNAME=$(cat lb_hostname.txt)
+            echo "LB_HOSTNAME=$LB_HOSTNAME" >> $GITHUB_ENV
+            echo "::add-mask::$LB_HOSTNAME"
+            echo "✅ Retrieved hostname from artifact (masked in logs)"
+          else
+            echo "::error::Could not find load balancer hostname file. DNS update cannot proceed."
+            echo "::error::Either run with infrastructure deployment or provide a custom hostname."
+            exit 1
+          fi
+      
+      - name: "🔄 Update DNS records"
+        run: |
+          echo "::group::Creating DNS update script"
+          cat > update_dns.js << 'EOF'
+          const axios = require('axios');
+          
+          // ANSI color codes for prettier console output
+          const colors = {
+            reset: "\x1b[0m",
+            bright: "\x1b[1m",
+            green: "\x1b[32m",
+            yellow: "\x1b[33m",
+            red: "\x1b[31m",
+            cyan: "\x1b[36m"
+          };
+          
+          async function parseSource(fullHostname, domainName) {
+            if (!fullHostname.endsWith(domainName)) {
+              throw new Error(`Hostname doesn't match domain`);
+            }
+            return fullHostname.substring(0, fullHostname.length - domainName.length - 1);
+          }
+          
+          async function updateDNSRecord(config, recordData) {
+            try {
+              const source = await parseSource(recordData.fullHostname, config.domainName);
+              
+              console.log(`${colors.cyan}➡️ Updating DNS for ${colors.bright}${recordData.serviceName}${colors.reset}`);
+              
+              const baseURL = `${config.apiBaseUrl}/${config.domainId}/dns/record`;
+              const headers = {
+                'Authorization': `Bearer ${config.apiToken}`,
+                'Content-Type': 'application/json'
+              };
+              
+              const payload = {
+                type: 'CNAME',
+                source: source,
+                target: config.lbHostname,
+                ttl: 300
+              };
+              
+              const response = await axios.put(`${baseURL}/${recordData.recordId}`, payload, { headers });
+              
+              console.log(`${colors.green}✅ DNS record updated successfully: ${colors.bright}${recordData.serviceName}${colors.reset}`);
+              return true;
+            } catch (error) {
+              console.error(`${colors.red}❌ Error updating DNS record for ${recordData.serviceName}${colors.reset}`);
+              
+              // Log only generic error information
+              if (error.response) {
+                console.error(`Status code: ${error.response.status}`);
+              } else {
+                console.error(`Request failed: Network or configuration error`);
+              }
+              return false;
+            }
+          }
+          
+          async function updateAllRecords() {
+            console.log(`\n${colors.bright}🔄 Starting DNS record updates...${colors.reset}\n`);
+            
+            // Configuration from environment variables
+            const config = {
+              apiToken: process.env.DNS_API_TOKEN,
+              apiBaseUrl: process.env.DNS_API_BASE_URL,
+              domainId: process.env.DOMAIN_ID,
+              domainName: process.env.DOMAIN_NAME,
+              lbHostname: process.env.LB_HOSTNAME
+            };
+            
+            // Service records to update
+            const records = [
+              {
+                fullHostname: process.env.GRAFANA_HOSTNAME,
+                recordId: process.env.GRAFANA_RECORD_ID,
+                serviceName: 'Grafana'
+              },
+              {
+                fullHostname: process.env.ARGOCD_HOSTNAME,
+                recordId: process.env.ARGOCD_RECORD_ID,
+                serviceName: 'ArgoCD'
+              },
+              {
+                fullHostname: process.env.DEVOPS_OPENDAOC_HOSTNAME,
+                recordId: process.env.DEVOPS_OPENDAOC_RECORD_ID,
+                serviceName: 'DevOps OpenDAoC'
+              }
+            ];
+            
+            // Validate configuration without revealing values
+            const requiredConfig = ['apiToken', 'apiBaseUrl', 'domainId', 'domainName', 'lbHostname'];
+            for (const field of requiredConfig) {
+              if (!config[field]) {
+                console.error(`${colors.red}❌ Missing required configuration: ${field}${colors.reset}`);
+                process.exit(1);
+              }
+            }
+            
+            // Update each record
+            let successCount = 0;
+            let failCount = 0;
+            
+            console.log(`${colors.cyan}ℹ️ Updating DNS for ${records.length} services...${colors.reset}\n`);
+            
+            for (const record of records) {
+              if (!record.recordId || !record.fullHostname) {
+                console.error(`${colors.yellow}⚠️ Missing record information for ${record.serviceName}${colors.reset}`);
+                failCount++;
+                continue;
+              }
+              
+              const success = await updateDNSRecord(config, record);
+              
+              if (success) {
+                successCount++;
+              } else {
+                failCount++;
+              }
+            }
+            
+            // Summary
+            console.log(`\n${colors.bright}📊 DNS update summary:${colors.reset}`);
+            console.log(`${colors.green}✓ ${successCount} records updated successfully${colors.reset}`);
+            if (failCount > 0) {
+              console.log(`${colors.red}✗ ${failCount} records failed to update${colors.reset}`);
+              process.exit(1);
+            }
+          }
+          
+          updateAllRecords();
+          EOF
+          echo "::endgroup::"
+          
+          echo "::group::DNS Update Execution"
+          node update_dns.js
+          echo "::endgroup::"
+        env:
+          DNS_API_TOKEN: ${{ secrets.DNS_API_TOKEN }}
+          DNS_API_BASE_URL: ${{ secrets.DNS_API_BASE_URL }}
+          DOMAIN_ID: ${{ secrets.DOMAIN_ID }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+          LB_HOSTNAME: ${{ env.LB_HOSTNAME }}
+          GRAFANA_HOSTNAME: ${{ secrets.GRAFANA_HOSTNAME }}
+          GRAFANA_RECORD_ID: ${{ secrets.GRAFANA_RECORD_ID }}
+          ARGOCD_HOSTNAME: ${{ secrets.ARGOCD_HOSTNAME }}
+          ARGOCD_RECORD_ID: ${{ secrets.ARGOCD_RECORD_ID }}
+          DEVOPS_OPENDAOC_HOSTNAME: ${{ secrets.DEVOPS_OPENDAOC_HOSTNAME }}
+          DEVOPS_OPENDAOC_RECORD_ID: ${{ secrets.DEVOPS_OPENDAOC_RECORD_ID }}
+          
+      - name: "📢 Output DNS Update Results"
+        run: |
+          echo "::notice::🎯 DNS records updated to point to the new Load Balancer:"
+          echo "  ✅ Grafana"
+          echo "  ✅ ArgoCD"
+          echo "  ✅ DevOps OpenDAoC"
+          echo ""
+          echo "::notice::⏱️ DNS changes may take some time to propagate based on TTL settings."
+      
+      - name: "🧹 Cleanup local files"
+        if: always()
+        run: |
+          rm -f lb_hostname.txt update_dns.js
+
+  #-----------------------------------------------
+  # 🧹 CLEANUP AND NOTIFICATION
+  #-----------------------------------------------
+  cleanup-and-notify:
+    name: "🧹 Cleanup and Send Notification"
+    needs: [test-code-quality-security-scan, init-tf-state, deploy-infrastructure, update-dns]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: "📊 Determine deployment status"
+        id: status
+        run: |
+          # Define which jobs we should check based on inputs
+          CHECK_SECURITY="${{ github.event.inputs.run_test_code_quality_security_scan }}"
+          CHECK_STATE="${{ github.event.inputs.run_state_init }}"
+          CHECK_INFRA="${{ github.event.inputs.run_infrastructure }}"
+          CHECK_DNS="${{ github.event.inputs.run_dns_update }}"
+          
+          # Initialize status
+          STATUS="success"
+          MESSAGE="Selected jobs completed successfully"
+          
+          # Check security scan job if it was run
+          if [ "$CHECK_SECURITY" == "true" ] && [ "${{ needs.test-code-quality-security-scan.result }}" != "success" ]; then
+            STATUS="failure"
+            MESSAGE="Security scan job failed"
+          fi
+          
+          # Check state init job if it was run
+          if [ "$CHECK_STATE" == "true" ] && [ "${{ needs.init-tf-state.result }}" != "success" ]; then
+            STATUS="failure"
+            MESSAGE="Terraform state initialization job failed"
+          fi
+          
+          # Check infrastructure job if it was run
+          if [ "$CHECK_INFRA" == "true" ] && [ "${{ needs.deploy-infrastructure.result }}" != "success" ]; then
+            STATUS="failure"
+            MESSAGE="Infrastructure deployment job failed"
+          fi
+          
+          # Check DNS job if it was run
+          if [ "$CHECK_DNS" == "true" ] && [ "${{ needs.update-dns.result }}" != "success" ]; then
+            STATUS="failure"
+            MESSAGE="DNS update job failed"
+          fi
+          
+          # Set outputs
+          if [ "$STATUS" == "success" ]; then
+            echo "deployment_status=success" >> $GITHUB_OUTPUT
+            echo "status_emoji=✅" >> $GITHUB_OUTPUT
+            echo "status_message=$MESSAGE" >> $GITHUB_OUTPUT
+          else
+            echo "deployment_status=failure" >> $GITHUB_OUTPUT
+            echo "status_emoji=❌" >> $GITHUB_OUTPUT
+            echo "status_message=$MESSAGE. Check job logs for details." >> $GITHUB_OUTPUT
+          fi
+          
+          # List executed jobs for summary
+          JOBS_RUN=""
+          if [ "$CHECK_SECURITY" == "true" ]; then JOBS_RUN="$JOBS_RUN Security Scan"; fi
+          if [ "$CHECK_STATE" == "true" ]; then JOBS_RUN="$JOBS_RUN State Init"; fi
+          if [ "$CHECK_INFRA" == "true" ]; then JOBS_RUN="$JOBS_RUN Infrastructure"; fi
+          if [ "$CHECK_DNS" == "true" ]; then JOBS_RUN="$JOBS_RUN DNS Update"; fi
+          echo "jobs_run=$JOBS_RUN" >> $GITHUB_OUTPUT
+      
+      - name: "📦 Delete hostname artifact"
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: lb-hostname-${{ github.run_id }}
+          failOnError: false
+      
+      - name: "📱 Send Slack notification"
+        if: ${{ secrets.SLACK_WEBHOOK != '' }}
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "${{ steps.status.outputs.status_emoji }} Infrastructure deployment: ${{ steps.status.outputs.deployment_status }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "${{ steps.status.outputs.status_emoji }} Infrastructure Deployment: ${{ steps.status.outputs.deployment_status }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Jobs Run:*\n${{ steps.status.outputs.jobs_run }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn", 
+                    "text": "${{ steps.status.outputs.status_message }}"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow Run"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      
+      - name: "📢 Output final status"
+        run: |
+          echo "::notice::${{ steps.status.outputs.status_emoji }} Infrastructure deployment: ${{ steps.status.outputs.deployment_status }}"
+          echo "::notice::Jobs executed: ${{ steps.status.outputs.jobs_run }}"
+          echo "::notice::${{ steps.status.outputs.status_message }}"
