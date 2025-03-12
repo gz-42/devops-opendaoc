@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 jobs:
-  security-scan:
-    name: "Security Scan"
+  test-code-security-scan:
+    name: "Test Code and Security Scan"
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.confirm_deploy == 'yes' }}
     steps:
@@ -34,11 +34,9 @@ jobs:
 
   terraform-deploy:
     name: "Terraform Deploy"
-    needs: security-scan
+    needs: test-code-security-scan
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.confirm_deploy == 'yes' }}
-    outputs:
-      lb_hostname: ${{ steps.set-outputs.outputs.lb_hostname }}
         
     steps:
       - name: Checkout code
@@ -132,7 +130,7 @@ jobs:
           LB_HOSTNAME=$(terraform output -json | jq -r '.load_balancer_hostname.value')
           
           # Output as a job output (masked in logs if sensitive)
-          echo "lb_hostname=$LB_HOSTNAME" >> $GITHUB_OUTPUT
+          echo "LB_HOSTNAME=$LB_HOSTNAME" >> $GITHUB_ENV
               
       - name: Cleanup sensitive files
         if: always()
@@ -148,9 +146,10 @@ jobs:
           rm -f terraform.tfstate*
           rm -r terraform.tfvars
  
-  update_dns:
+  update-dns:
+    name: Calling the Update-DNS Record Workflow
     needs: terraform-deploy
     uses: ./.github/workflows/update-dns-records.yaml
     with:
-      lb_hostname: ${{ needs.terraform-deploy.outputs.lb_hostname }}
+      lb_hostname: ${{ env.LB_HOSTNAME }}
     secrets: inherit
