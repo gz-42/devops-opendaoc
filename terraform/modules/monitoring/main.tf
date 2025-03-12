@@ -18,7 +18,7 @@ resource "helm_release" "kube-prometheus-stack" {
       grafana_ingress_tls_acme_enabled        = var.grafana_ingress_tls_acme_enabled
       grafana_ingress_ssl_passthrough_enabled = var.grafana_ingress_ssl_passthrough_enabled
       grafana_ingress_class                   = var.grafana_ingress_class
-      grafana_ingress_tls_secret              = var.grafana_ingress_tls_secret
+      grafana_tls_secret                      = var.grafana_tls_secret
     })
   ]
 }
