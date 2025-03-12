@@ -273,10 +273,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
           
       - name: "📚 Install dependencies"
-        run: npm install axios
+        run: |
+          # Create a package.json first to properly track dependencies
+          echo '{
+            "name": "dns-update-script",
+            "version": "1.0.0",
+            "private": true,
+            "dependencies": {
+              "axios": "^1.6.0"
+            }
+          }' > package.json
+          
+          # Install dependencies and generate lock file
+          npm install
       
       - name: "🔐 Set Load Balancer Hostname from artifact"
         if: steps.hostname-setup.outputs.USING_CUSTOM_HOSTNAME == 'false'
