@@ -275,6 +275,7 @@ https://www.opendaoc.com/docs/client/
    - Multi-AZ deployment
    - Redundant NAT gateways
    - Autoscaling node groups
+- **TO-DO**:
    - Database replication with 3-node MariaDB cluster
 
 ## 🤝 Contributing
