@@ -97,6 +97,14 @@ jobs:
       - name: Initialize tfstate infrastructure
         id: init-tfstate
         run: |
+          pwd
+          ls -larth
+          cd terraform
+          pwd
+          ls -larth
+          cd tfstate
+          pwd
+          ls -larth
           terraform init
           terraform apply -auto-approve | grep -v "token\|password\|secret\|key\|cert"
           cd ..
@@ -107,6 +115,9 @@ jobs:
       - name: Terraform Init
         id: init
         run: |
+          pwd
+          ls -larth
+          cd terraform
           pwd
           ls -larth
           terraform init \
@@ -122,6 +133,9 @@ jobs:
         run: |
           pwd
           ls -larth
+          cd terraform
+          pwd
+          ls -larth
           terraform plan -out=tfplan | grep -v "token\|password\|secret\|key\|cert"
           
       - name: Terraform Apply
@@ -130,11 +144,19 @@ jobs:
         run: |
           pwd
           ls -larth
+          cd terraform
+          pwd
+          ls -larth
           terraform apply -auto-approve tfplan | grep -v "token\|password\|secret\|key\|cert"
       
       - name: Set Load Balancer Hostname Output
         id: set-outputs
         run: |
+          pwd
+          ls -larth
+          cd terraform
+          pwd
+          ls -larth
           # Extract the LB hostname from Terraform output (handles sensitive values)
           LB_HOSTNAME=$(terraform output -json | jq -r '.load_balancer_hostname.value')
           
@@ -144,9 +166,17 @@ jobs:
       - name: Cleanup sensitive files
         if: always()
         run: |
+          pwd
+          ls -larth
+          cd terraform
+          pwd
+          ls -larth
           rm -f tfplan
           rm -f crash.log
           rm -f terraform.tfstate*
+          rm -f terraform.tfvars
+          cd tfstate-init
+          rm -r terraform.tfvars
  
   update_dns:
     needs: terraform-deploy
