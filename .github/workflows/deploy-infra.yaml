@@ -75,6 +75,7 @@ jobs:
           db_connection_string = "${{ secrets.DB_CONNECTION_STRING }}"
           grafana_hostname = "${{ secrets.GRAFANA_HOSTNAME }}"
           grafana_pwd = "${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+          grafana_tls_secret = "${{ secrets.GRAFANA_TLS_SECRET }}"
           slack_webhook = "${{ secrets.SLACK_WEBHOOK }}"
           slack_channel = "${{ secrets.SLACK_CHANNEL }}"
           EOF
