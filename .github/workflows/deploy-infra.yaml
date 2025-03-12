@@ -56,8 +56,6 @@ jobs:
 
       - name: Create terraform.tfvars
         run: |
-          pwd
-          ls -larth
           cd terraform
           touch terraform.tfvars
           chmod 644 terraform.tfvars
@@ -80,10 +78,7 @@ jobs:
           slack_webhook = "${{ secrets.SLACK_WEBHOOK }}"
           slack_channel = "${{ secrets.SLACK_CHANNEL }}"
           EOF
-          cat terraform.tfvars
           cd tfstate-init
-          pwd
-          ls -larth
           touch terraform.tfvars
           chmod 644 terraform.tfvars
           cat > terraform.tfvars << EOF
@@ -91,35 +86,20 @@ jobs:
           prefix = "${{ secrets.TF_STATE_PREFIX }}"
           dynamodb_table_name = "${{ secrets.TF_STATE_KEY }}"
           EOF
-          cat terraform.tfvars
-          ls -larth
           
       - name: Initialize tfstate infrastructure
         id: init-tfstate
         run: |
-          pwd
-          ls -larth
           cd terraform
-          pwd
-          ls -larth
           cd tfstate-init
-          pwd
-          ls -larth
           terraform init
           terraform apply -auto-approve | grep -v "token\|password\|secret\|key\|cert"
-          cd ..
-          pwd
-          ls -larth
         continue-on-error: true
         
       - name: Terraform Init
         id: init
         run: |
-          pwd
-          ls -larth
           cd terraform
-          pwd
-          ls -larth
           terraform init \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=${{ secrets.TF_STATE_KEY }}" \
@@ -131,32 +111,20 @@ jobs:
         env:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
-          pwd
-          ls -larth
           cd terraform
-          pwd
-          ls -larth
           terraform plan -out=tfplan | grep -v "token\|password\|secret\|key\|cert"
           
       - name: Terraform Apply
         env:
           TF_CLI_ARGS: "-compact-warnings"
         run: |
-          pwd
-          ls -larth
           cd terraform
-          pwd
-          ls -larth
           terraform apply -auto-approve tfplan | grep -v "token\|password\|secret\|key\|cert"
       
       - name: Set Load Balancer Hostname Output
         id: set-outputs
         run: |
-          pwd
-          ls -larth
           cd terraform
-          pwd
-          ls -larth
           # Extract the LB hostname from Terraform output (handles sensitive values)
           LB_HOSTNAME=$(terraform output -json | jq -r '.load_balancer_hostname.value')
           
@@ -166,16 +134,15 @@ jobs:
       - name: Cleanup sensitive files
         if: always()
         run: |
-          pwd
-          ls -larth
           cd terraform
-          pwd
-          ls -larth
           rm -f tfplan
           rm -f crash.log
           rm -f terraform.tfstate*
           rm -f terraform.tfvars
           cd tfstate-init
+          rm -f tfplan
+          rm -f crash.log
+          rm -f terraform.tfstate*
           rm -r terraform.tfvars
  
   update_dns:
