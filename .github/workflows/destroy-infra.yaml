@@ -43,10 +43,35 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.5.7
-          
+
+      - name: Create terraform.tfvars
+        run: |
+          cat > terraform.tfvars << EOF
+          region = "${{ secrets.AWS_REGION }}"
+          prefix = "${{ secrets.TF_STATE_PREFIX }}"
+          dynamodb_table_name = "${{ secrets.TF_STATE_KEY }}"
+          project_name = "${{ secrets.PROJECT_NAME }}"
+          root_domain_name = "${{ secrets.DOMAIN_NAME }}"
+          vpc_cidr = "${{ secrets.VPC_CIDR }}"
+          public_subnet_cidrs = ["${{ secrets.VPC_PUBLIC_SUBNETS }}"]
+          private_subnet_cidrs = ["${{ secrets.VPC_PRIVATE_SUBNETS }}"]
+          cluster_name = "${{ secrets.CLUSTER_NAME }}"
+          group_users = ["${{ secrets.GROUP_USERS }}"]
+          email = "${{ secrets.EMAIL }}"
+          devops_opendaoc_hostname = "${{ secrets.DEVOPS_OPENDAOC_HOSTNAME }}"
+          argocd_hostname = "${{ secrets.ARGOCD_HOSTNAME }}"
+          mariadb_root_password = "${{ secrets.MARIADB_ROOT_PASSWORD }}"
+          db_connection_string = "${{ secrets.DB_CONNECTION_STRING }}"
+          grafana_hostname = "${{ secrets.GRAFANA_HOSTNAME }}"
+          grafana_pwd = "${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+          slack_webhook = "${{ secrets.SLACK_WEBHOOK }}"
+          slack_channel = "${{ secrets.SLACK_CHANNEL }}"
+          EOF 
+
       - name: Terraform Init
         id: init
         run: |
+          cd terraform
           terraform init \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=${{ secrets.TF_STATE_KEY }}" \
