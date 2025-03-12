@@ -102,7 +102,7 @@ jobs:
           cd terraform
           pwd
           ls -larth
-          cd tfstate
+          cd tfstate-init
           pwd
           ls -larth
           terraform init
