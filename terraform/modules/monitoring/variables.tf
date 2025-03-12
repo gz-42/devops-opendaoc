@@ -53,9 +53,8 @@ variable "grafana_ingress_class" {
   default     = "nginx"
 }
 
-variable "grafana_ingress_tls_secret_name" {
+variable "grafana_ingress_tls_secret" {
   description = "Secret name for grafana TLS cert"
   type        = string
   sensitive   = true
-  default     = "grafana-tls-secret"
 }
