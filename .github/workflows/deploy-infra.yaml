@@ -1,0 +1,109 @@
+name: "Deploy Terraform Infrastructure"
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_deploy:
+        description: 'Type "yes" to confirm deployment'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  security-scan:
+    name: "Security Scan"
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm_deploy == 'yes' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          soft_fail: true
+
+      - name: Run checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          soft_fail: true
+          framework: terraform
+
+  terraform-deploy:
+    name: "Terraform Deploy"
+    needs: security-scan
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm_deploy == 'yes' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+          
+      - name: Initialize tfstate infrastructure
+        id: init-tfstate
+        run: |
+          cd tfstate-init
+          terraform init
+          terraform apply -auto-approve | grep -v "token\|password\|secret\|key\|cert"
+          cd ..
+        continue-on-error: true
+        
+      - name: Terraform Init
+        id: init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ secrets.TF_STATE_KEY }}" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}"
+            
+      - name: Terraform Plan
+        id: plan
+        env:
+          TF_CLI_ARGS: "-compact-warnings"
+        run: |
+          terraform plan -out=tfplan | grep -v "token\|password\|secret\|key\|cert"
+          
+      - name: Terraform Apply
+        env:
+          TF_CLI_ARGS: "-compact-warnings"
+        run: |
+          terraform apply -auto-approve tfplan | grep -v "token\|password\|secret\|key\|cert"
+      
+      - name: Set Load Balancer Hostname Output
+        id: set-outputs
+        run: |
+          # Extract the LB hostname from Terraform output (handles sensitive values)
+          LB_HOSTNAME=$(terraform output -json | jq -r '.load_balancer_hostname.value')
+          
+          # Output as a job output (masked in logs if sensitive)
+          echo "lb_hostname=$LB_HOSTNAME" >> $GITHUB_OUTPUT
+              
+      - name: Cleanup sensitive files
+        if: always()
+        run: |
+          rm -f tfplan
+          rm -f crash.log
+          rm -f terraform.tfstate*
+ 
+  update_dns:
+    needs: terraform-deploy
+    uses: ./.github/workflows/update-dns-records.yml
+    with:
+      lb_hostname: ${{ needs.terraform-deploy.outputs.lb_hostname }}
+    secrets: inherit
