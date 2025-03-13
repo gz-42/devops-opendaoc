@@ -60,6 +60,7 @@ resource "null_resource" "velero_cleanup" {
       kubectl delete volumesnapshotlocations --all -n velero
       kubectl delete deployments.app velero -n velero
       kubectl delete service velero -n velero
+      kubectl delete jobs.batch velero-cleanup-crds -n velero
       kubectl delete ns velero
       # Allow time for deletion to occur
       sleep 30
