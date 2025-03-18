@@ -540,10 +540,12 @@ jobs:
           failOnError: false
       
       - name: "📱 Send Slack notification"
-        if: env.SLACK_WEBHOOK != ''
         uses: slackapi/slack-github-action@v1.25.0
         with:
+          webhook: ${{ secrets.SLACK_WEBHOOK }}
+          webhook-type: incoming-webhook
           payload: |
+            channel: ${{ secrets.SLACK_CHANNEL }}
             {
               "text": "${{ steps.status.outputs.status_emoji }} Infrastructure deployment: ${{ steps.status.outputs.deployment_status }}",
               "blocks": [
@@ -589,10 +591,6 @@ jobs:
                 }
               ]
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
           
       - name: "📢 Output final status"
         run: |
