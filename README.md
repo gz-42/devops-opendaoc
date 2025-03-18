@@ -157,16 +157,14 @@ The repository includes the following CI/CD workflows:
    - Security scanning with tfsec and checkov
    - Terraform state initialization
    - Infrastructure deployment
+   - Updates DNS records for all services
+   - Points to the Load Balancer endpoint
+   - Supports manual and automated execution
 
 2. **🧹 Destroy Infrastructure** (destroy-infra.yaml):
    - Safe destruction with confirmation checks
    - Cleanup of Kubernetes resources
    - State infrastructure cleanup
-
-3. **🔄 DNS Management** (update-dns-records.yaml):
-   - Updates DNS records for all services
-   - Points to the Load Balancer endpoint
-   - Supports manual and automated execution
 
 ## 📋 Prerequisites
 
