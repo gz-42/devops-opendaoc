@@ -3,7 +3,7 @@ namespace: prod
 replicaCount: 3
 image:
   name: ghcr.io/gz-42/opendaoc-database
-  tag: 2025.09.9
+  tag: 2025.10.1
 storageClassName: gp3
 #MARIADB_ROOT_PASSWORD: bXktc2VjcmV0LXB3
 # echo -n 'my-secret-pw' | base64
