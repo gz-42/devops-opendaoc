@@ -3,6 +3,6 @@ namespace: prod
 replicaCount: 2
 image:
   name: ghcr.io/gz-42/opendaoc-core
-  tag: 2026.01.11
+  tag: 2026.01.12
 #DB_CONNECTION_STRING: "c2VydmVyPW9wZW5kYW9jLWRhdGFiYXNlLTAub3BlbmRhb2MtZGF0YWJhc2Utc2VydmljZXMucHJvZC5zdmMuY2x1c3Rlci5sb2NhbDtwb3J0PTMzMDY7ZGF0YWJhc2U9b3BlbmRhb2M7dXNlcmlkPXJvb3Q7cGFzc3dvcmQ9bXktc2VjcmV0LXB3O3RyZWF0dGlueWFzYm9vbGVhbj10cnVlCg=="
 # echo -n 'server=opendaoc-database-0.opendaoc-database-services.prod.svc.cluster.local;port=3306;database=opendaoc;userid=root;password=my-secret-pw;treattinyasboolean=true' | base64
